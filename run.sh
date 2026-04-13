@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ollama pull mistral-small3.2
+#ollama pull mistral-small3.2
 
 if [ ! -d .venv ]; then
 	python3 -m venv .venv
