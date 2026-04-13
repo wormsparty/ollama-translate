@@ -1,91 +1,57 @@
-import os
 import requests
 from pathlib import Path
 from docx import Document
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "mistral-small3.2"
-MAX_WORDS = 3000
-OVERLAP_PARAGRAPHS = 2
 
 SYSTEM_PROMPT = (
-    "Tu es un traducteur professionnel français vers allemand. "
-    "Traduis le texte suivant du français vers l'allemand. "
+    "Tu es un traducteur professionnel français vers allemand spécialisé dans les documents administratifs et appels d'offre suisses. "
+    "Traduis le texte suivant du français vers l'allemand standard suisse (Schweizer Hochdeutsch) en respectant ces règles : "
+    "utilise toujours 'ss' à la place de 'ß' (le ß n'existe pas en Suisse) ; "
+    "utilise les guillemets suisses « » ; "
+    "emploie le vocabulaire administratif helvétique (ex: 'Offerte' plutôt que 'Angebot', 'Submission', 'Kanton', 'Gemeinde', etc.) ; "
+    "maintiens un registre formel et neutre adapté aux marchés publics suisses. "
     "Conserve la structure logique et les sauts de paragraphes. "
     "Ne rien ajouter ni retirer au contenu. "
     "Réponds uniquement avec la traduction, sans commentaire."
 )
 
 
-def extract_paragraphs(docx_path: Path) -> list[str]:
+def extract_text(docx_path: Path) -> str:
     doc = Document(docx_path)
-    return [p.text for p in doc.paragraphs if p.text.strip()]
-
-
-def count_words(paragraphs: list[str]) -> int:
-    return sum(len(p.split()) for p in paragraphs)
-
-
-def split_into_chunks(paragraphs: list[str], max_words: int, overlap: int) -> list[list[str]]:
-    chunks = []
-    current_chunk = []
-    current_words = 0
-
-    for para in paragraphs:
-        para_words = len(para.split())
-        if current_words + para_words > max_words and current_chunk:
-            chunks.append(current_chunk)
-            # Keep last `overlap` paragraphs for context continuity
-            current_chunk = current_chunk[-overlap:]
-            current_words = sum(len(p.split()) for p in current_chunk)
-        current_chunk.append(para)
-        current_words += para_words
-
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return chunks
+    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    return "\n\n".join(paragraphs)
 
 
 def translate_text(text: str) -> str:
-    prompt = f"{SYSTEM_PROMPT}\n\n{text}"
     payload = {
         "model": MODEL,
-        "prompt": prompt,
+        "system": SYSTEM_PROMPT,
+        "prompt": text,
         "stream": False,
     }
-    response = requests.post(OLLAMA_URL, json=payload, timeout=300)
+    response = requests.post(OLLAMA_URL, json=payload, timeout=600)
     response.raise_for_status()
-    return response.json()["response"].strip()
+    return response.json()["response"].strip().replace("ß", "ss")
 
 
 def translate_document(docx_path: Path, output_dir: Path) -> None:
     print(f"[→] Traitement : {docx_path.name}")
-    paragraphs = extract_paragraphs(docx_path)
 
-    if not paragraphs:
+    text = extract_text(docx_path)
+    if not text:
         print(f"  [!] Document vide, ignoré.")
         return
 
-    total_words = count_words(paragraphs)
-    print(f"  Mots détectés : {total_words}")
+    word_count = len(text.split())
+    print(f"  Mots détectés : {word_count}")
+    print(f"  Traduction en cours...")
 
-    if total_words <= MAX_WORDS:
-        text = "\n\n".join(paragraphs)
-        print(f"  Traduction en un seul bloc...")
-        translated = translate_text(text)
-        translated_parts = [translated]
-    else:
-        chunks = split_into_chunks(paragraphs, MAX_WORDS, OVERLAP_PARAGRAPHS)
-        print(f"  Document long : {len(chunks)} sections")
-        translated_parts = []
-        for i, chunk in enumerate(chunks, 1):
-            print(f"  Section {i}/{len(chunks)}...")
-            text = "\n\n".join(chunk)
-            translated_parts.append(translate_text(text))
+    translated = translate_text(text)
 
-    output_path = output_dir / (docx_path.stem + ".txt")
-    output_path.write_text("\n\n".join(translated_parts), encoding="utf-8")
+    output_path = output_dir / (docx_path.stem + ".md")
+    output_path.write_text(translated, encoding="utf-8-sig")
     print(f"  [✓] Sauvegardé : {output_path}")
 
 

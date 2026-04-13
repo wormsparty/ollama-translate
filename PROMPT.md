@@ -10,7 +10,18 @@ Contraintes techniques :
 
 Utiliser python-docx pour l'extraction
 Utiliser requests pour appeler l'API Ollama (/api/generate ou /api/chat)
-Le prompt système doit préciser : traducteur professionnel FR→DE, conserver la mise en forme logique (paragraphes), ne rien ajouter ni retirer
+Le prompt système doit préciser : 
+
+```
+Tu es un traducteur professionnel français→allemand spécialisé dans les documents administratifs et appels d'offre suisses. Tu respectes scrupuleusement les règles de l'allemand standard suisse (Schweizer Hochdeutsch) :
+- Utiliser « ss » à la place de « ß » (le ß n'existe pas en Suisse)
+- Utiliser les guillemets suisses : « » (et non „ " ni " ")
+- Vocabulaire administratif suisse : « Offerte » (et non Angebot), « Kanton », « Gemeinde », « Submission », etc.
+- Éviter les germanismes ou austriacismes, préférer les termes en usage dans l'administration helvétique
+- Conserver le registre formel et neutre propre aux marchés publics
+- Ne rien ajouter, ne rien omettre, ne pas paraphraser
+```
+
 Gérer les documents longs : si le texte dépasse ~3000 mots, le découper en grandes sections (par paragraphes groupés) avec chevauchement de contexte entre les morceaux
 Logger la progression fichier par fichier dans le terminal
 Créer le dossier de/ s'il n'existe pas
