@@ -1,6 +1,10 @@
 #!/bin/sh
 
-#ollama pull mistral-small3.2
+if ! which ollama; then
+	curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+ollama pull mistral-small3.2
 
 if [ ! -d .venv ]; then
 	python3 -m venv .venv
