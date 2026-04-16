@@ -1,4 +1,4 @@
 fr/
 de/
-PROMPT.md
 *.pyc
+__pycache__

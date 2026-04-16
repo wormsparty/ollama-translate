@@ -14,4 +14,4 @@ else
 	. .venv/bin/activate
 fi
 
-python3 translate_docx.py
+python3 translate.py

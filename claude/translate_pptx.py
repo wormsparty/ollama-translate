@@ -70,24 +70,48 @@ def set_para_text(para_elem: etree._Element, new_text: str) -> None:
     """
     Réinjecte new_text dans un paragraphe <a:p>.
 
-    Met la traduction dans le premier <a:t> hors champ, vide les suivants.
-    Les <a:rPr> (gras, italique, police) ne sont jamais modifiés.
+    Place tout le texte traduit dans le premier <a:r> (hors champ <a:fld>)
+    contenant un <a:t>, en conservant son <a:rPr> (gras, italique, police).
+    Les runs suivants purement textuels (<a:rPr> + <a:t> uniquement) sont
+    supprimés entièrement.
+    Les runs contenant d'autres éléments voient leur <a:t> vidé.
+    Les champs automatiques (<a:fld> : numéros de slide, date) sont ignorés.
     """
-    t_elements = [
-        t for t in para_elem.iter(f"{A}t")
-        if t.getparent() is not None and t.getparent().tag != f"{A}fld"
+    # Tous les <a:r> hors <a:fld> contenant au moins un <a:t>
+    text_runs = [
+        r for r in para_elem.iter(f"{A}r")
+        if r.getparent() is not None
+        and r.getparent().tag != f"{A}fld"
+        and any(child.tag == f"{A}t" for child in r)
     ]
-    if not t_elements:
+    if not text_runs:
         return
 
-    first_t = t_elements[0]
+    # Texte traduit dans le premier run
+    first_run = text_runs[0]
+    first_t_list = [c for c in first_run if c.tag == f"{A}t"]
+    first_t = first_t_list[0]
     first_t.text = new_text
     first_t.set(XML_SPACE, "preserve")
+    for extra_t in first_t_list[1:]:
+        first_run.remove(extra_t)
 
-    for t_elem in t_elements[1:]:
-        t_elem.text = ""
-        if XML_SPACE in t_elem.attrib:
-            del t_elem.attrib[XML_SPACE]
+    # Runs suivants : supprimer si purement textuels, vider <a:t> sinon
+    for run in text_runs[1:]:
+        non_text_children = [
+            c for c in run if c.tag not in (f"{A}t", f"{A}rPr")
+        ]
+        if non_text_children:
+            # Contient des éléments non-texte → vider seulement les <a:t>
+            for t in run:
+                if t.tag == f"{A}t":
+                    t.text = ""
+                    t.attrib.pop(XML_SPACE, None)
+        else:
+            # Run purement textuel → supprimer
+            parent = run.getparent()
+            if parent is not None:
+                parent.remove(run)
 
 
 # ---------------------------------------------------------------------------

@@ -236,8 +236,8 @@ def run_batch(glob: str, translate_fn: TranslateFn) -> None:
     glob : motif passé à Path.glob(), ex. "*.docx" ou "*.pptx"
     translate_fn : fonction(path, output_dir) spécifique au format
     """
-    input_dir = Path("fr")
-    output_dir = Path("de")
+    input_dir = Path("../fr")
+    output_dir = Path("../de")
 
     if not input_dir.exists():
         print(f"[!] Dossier source '{input_dir}' introuvable.")

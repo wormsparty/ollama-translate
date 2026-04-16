@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
 """
-translate_docx.py — Traduit un .docx fr → de en préservant la mise en forme.
+translate_docx.py — Traduction de fichiers .docx (WordprocessingML).
 
-Stratégie :
-1. Lire le .docx (ZIP de XML) directement avec lxml
-2. Extraire le texte de chaque paragraphe avec un ID numérique
-3. Envoyer tout le texte en une seule requête Ollama (contexte global)
-   → chunking par fenêtre glissante si le document est trop long
-4. Réinjecter les traductions dans les <w:t> du XML d'origine
-   → les <w:rPr> (gras, italique, police) et les images ne sont pas touchés
-5. Réécrire le .docx
-
-Usage : python translate_docx.py
-  Lit les .docx dans fr/, écrit les traductions dans de/
-
-Parties XML traitées : document.xml, header*.xml, footer*.xml,
-                       footnotes.xml, endnotes.xml
+Parties traitées : document.xml, header*.xml, footer*.xml, footnotes.xml, endnotes.xml
 """
 
 import re
@@ -23,25 +10,26 @@ from pathlib import Path
 
 from lxml import etree
 
-from translate_core import XML_SPACE, run_batch, translate_zip_document
+from translate_core import XML_SPACE, translate_zip_document
 
 # ---------------------------------------------------------------------------
-# Constantes XML (namespace WordprocessingML)
+# Namespace WordprocessingML
 # ---------------------------------------------------------------------------
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 W = f"{{{W_NS}}}"
 
-TRANSLATABLE_PARTS = re.compile(
+DOCX_PARTS = re.compile(
     r"^word/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$"
 )
 
+
 # ---------------------------------------------------------------------------
-# Extraction et réinjection (spécifique DOCX)
+# Extraction / injection
 # ---------------------------------------------------------------------------
 
 
-def extract_catalogue(root: etree._Element) -> list[dict]:
+def docx_extract(root: etree._Element) -> list[dict]:
     """
     Parcourt tous les <w:p> et retourne un catalogue de segments non vides.
     Gère automatiquement les tableaux, en-têtes, pieds de page et contrôles
@@ -57,7 +45,7 @@ def extract_catalogue(root: etree._Element) -> list[dict]:
     return catalogue
 
 
-def set_para_text(para_elem: etree._Element, new_text: str) -> None:
+def docx_inject(para_elem: etree._Element, new_text: str) -> None:
     """
     Réinjecte new_text dans un paragraphe <w:p>.
 
@@ -80,17 +68,9 @@ def set_para_text(para_elem: etree._Element, new_text: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Point d'entrée
+# Point d'entrée format
 # ---------------------------------------------------------------------------
 
 
-def translate_document(path: Path, output_dir: Path) -> None:
-    translate_zip_document(path, output_dir, TRANSLATABLE_PARTS, extract_catalogue, set_para_text)
-
-
-def main() -> None:
-    run_batch("*.docx", translate_document)
-
-
-if __name__ == "__main__":
-    main()
+def translate_docx(path: Path, output_dir: Path) -> None:
+    translate_zip_document(path, output_dir, DOCX_PARTS, docx_extract, docx_inject)
